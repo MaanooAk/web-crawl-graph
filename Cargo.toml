@@ -1,7 +1,9 @@
 [package]
 name = "web-crawl-graph"
 version = "0.1.0"
+authors = ["Akritas Akritidis"]
 edition = "2024"
+repository = "https://github.com/MaanooAk/web-crawl-graph"
 
 [dependencies]
 reqwest = { version = "0.12", features = ["blocking"] }
