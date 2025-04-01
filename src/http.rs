@@ -12,15 +12,28 @@ pub enum FetchResult {
     Fail,
 }
 
-use reqwest::header;
-use FetchResult::*;
+use std::time::Duration;
 
-pub fn fetch_body(url: &str) -> FetchResult {
+use FetchResult::*;
+use reqwest::header;
+
+use crate::url::domain_of;
+
+pub fn fetch_body(client: &reqwest::blocking::Client, url: &str) -> FetchResult {
     //! Http request a url and return the body text of the response
 
-    let res = match reqwest::blocking::get(url) {
+    let mut url = String::from(url);
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        url.insert_str(0, "https://");
+    }
+
+    // let client = reqwest::blocking::Client::new();
+    let request = client.get(&url).timeout(Duration::from_secs(5));
+
+    let res = match request.send() {
         Ok(res) => res,
-        Err(_) => {
+        Err(_err) => {
+            // panic!("{url}: {_err}");
             // TODO check the error
             return Fail;
         }
@@ -36,15 +49,16 @@ pub fn fetch_body(url: &str) -> FetchResult {
         // println!("skip {content_type}");
         return Fail;
     }
-    
+
     let final_url = String::from(res.url().as_str());
-    let domain = String::from(res.url().domain().unwrap());
+    let domain = String::from(domain_of(res.url().domain().unwrap()));
     let Ok(body) = res.text() else {
         return Fail;
     };
 
     Success(Page {
         url: final_url,
-        domain, body,
+        domain,
+        body,
     })
 }
