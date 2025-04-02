@@ -1,7 +1,3 @@
-struct Url<'a> {
-    path: String,
-    domain: &'a str,
-}
 
 // pub fn domain_of(path: &str) -> &str {
 //     println!("{path} = {}", domain_of1(path));

@@ -15,7 +15,7 @@ pub struct StaticParser {
 impl StaticParser {
     pub fn new() -> Self {
         StaticParser {
-            regex: Regex::new(r#"<a[^>]*href="([^"\n]*)""#).unwrap(),
+            regex: Regex::new(r#"<a[^>]*href="([^"\n ]+)""#).unwrap(),
             exts: vec!["html", "htm", "php", "jsp", "jspx", "asp", "aspx"],
         }
     }
