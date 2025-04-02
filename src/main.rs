@@ -282,6 +282,39 @@ async fn main() {
                 GRAY,
             );
 
+            if !nodes.is_empty() {
+                let mut mouse = Vec2::from(mouse_position());
+                mouse -= Vec2::new(w * 0.5, h * 0.5);
+                mouse /= size;
+
+                let mut node = &nodes[0];
+                let mut distance = f32::MAX;
+                for i in &nodes {
+                    if !i.visible {
+                        continue;
+                    }
+                    let dis = mouse.distance(Vec2::new(i.x, i.y));
+                    if dis < distance {
+                        distance = dis;
+                        node = i;
+                    }
+                }
+                {
+                    let i = node;
+                    draw_circle(w * 0.5 + i.x * size, h * 0.5 + i.y * size, size + 1.0, WHITE);
+                    draw_circle(w * 0.5 + i.x * size, h * 0.5 + i.y * size, size, GRAY);
+                    draw_circle(w * 0.5 + i.x * size, h * 0.5 + i.y * size, size - 2.0, WHITE);
+                }
+
+                draw_text(
+                    format!("\"{}\"", node.name).as_str(),
+                    20.0,
+                    h - 20.0,
+                    30.0,
+                    WHITE,
+                );
+            }
+
             next_frame().await;
 
             if has_ended {
