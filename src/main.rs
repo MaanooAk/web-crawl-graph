@@ -229,7 +229,7 @@ async fn main() {
 
             clear_background(BLACK);
 
-            let size = 10.0;
+            let size = f32::min(10.0, 10.0 * 300.0 / visible_nodes as f32);
 
             for i in &connections {
                 let source = nodes.get(i.source).unwrap();
@@ -264,7 +264,7 @@ async fn main() {
             // ===
 
             let movement = simulate_physics(&mut nodes, &connections);
-            if movement <= visible_nodes as f32 * 0.5 {
+            if movement <= visible_nodes as f32 * 1.0 {
                 for i in &mut nodes {
                     if !i.visible {
                         i.visible = true;
@@ -275,7 +275,7 @@ async fn main() {
             }
 
             draw_text(
-                format!("movement {}", movement).as_str(),
+                format!("no {}/{} mo {}", visible_nodes, nodes.len(), movement).as_str(),
                 20.0,
                 20.0,
                 30.0,
@@ -338,15 +338,14 @@ async fn main() {
 
             for index in last_state_order_len..state.order.len() {
                 let source_name = &state.order[index];
-                println!("{}", source_name);
                 let source_index = nodes.iter().position(|i| &i.name == source_name).unwrap();
 
                 for target_name in state.mapping.get(source_name).unwrap() {
                     let target_index = nodes.iter().position(|i| &i.name == target_name).unwrap();
 
-                    // if target_index < source_index {
-                    //     continue;
-                    // }
+                    if target_index == source_index {
+                        continue;
+                    }
                     connections.push(Connection {
                         source: source_index,
                         target: target_index,
@@ -376,23 +375,53 @@ use macroquad::math::Vec2;
 
 fn simulate_physics(nodes: &mut Vec<Node>, connections: &Vec<Connection>) -> f32 {
     let mut movement = 0.0;
+
+    let step = 1.0 / 60.0;
+
+    for con in connections {
+        let n1 = &nodes[con.source];
+        if !n1.visible {
+            continue;
+        }
+        let n2 = &nodes[con.target];
+        if !n2.visible {
+            continue;
+        }
+        let mut v1 = Vec2::new(n1.x, n1.y);
+        let mut v2 = Vec2::new(n2.x, n2.y);
+        let dis = v1.distance(v2);
+        let d = v1 - v2;
+
+        if dis <= 5.0 {
+            continue;
+        }
+
+        let scale = (dis / 5.0).powf(2.0);
+        v1 += d.normalize() * -1.0 * step * scale;
+        v2 += d.normalize() * 1.0 * step * scale;
+        movement += (step * scale).powf(2.0);
+
+        nodes[con.source].y = v1.y;
+        nodes[con.source].x = v1.x;
+        nodes[con.target].x = v2.x;
+        nodes[con.target].y = v2.y;
+    }
+
     for i1 in 0..nodes.len() {
+        let n1 = &nodes[i1];
+        if !n1.visible {
+            continue;
+        }
+        let mut v1 = Vec2::new(n1.x, n1.y);
+
         for i2 in i1 + 1..nodes.len() {
-            // for _ in 0..300 {
-            //     let i1 = rand::gen_range(0, nodes.len());
-            //     let i2 = rand::gen_range(0, nodes.len());
-            if i1 == i2 {
-                continue;
-            }
+            debug_assert_ne!(i1, i2);
 
-            let n1 = &nodes[i1];
             let n2 = &nodes[i2];
-
-            if !n1.visible || !n2.visible {
+            if !n2.visible {
                 continue;
             }
 
-            let mut v1 = Vec2::new(n1.x, n1.y);
             let mut v2 = Vec2::new(n2.x, n2.y);
             let dis = v1.distance(v2);
             let d = v1 - v2;
@@ -401,39 +430,35 @@ fn simulate_physics(nodes: &mut Vec<Node>, connections: &Vec<Connection>) -> f32
                 let scale = (2.5 - dis) / 2.0;
                 v1 += d.normalize() * 1.0 * scale;
                 v2 += d.normalize() * -1.0 * scale;
-                movement += scale;
+                movement += (scale).powf(2.0);
             } else {
-                let c12 = connections
-                    .iter()
-                    .find(|c| c.source == i1 && c.target == i2);
-                let c21 = connections
-                    .iter()
-                    .find(|c| c.source == i2 && c.target == i1);
+                // let c12 = connections.iter().find(|c| {
+                //     (c.source == i1 && c.target == i2) || (c.source == i2 && c.target == i1)
+                // });
 
-                let step = 1.0 / 60.0;
-
-                if c12.is_none() && c21.is_none() {
-                    if dis < 20.0 {
-                        let scale = 20.0 / dis;
-                        v1 += d.normalize() * 1.0 * step * scale;
-                        v2 += d.normalize() * -1.0 * step * scale;
-                        movement += step * scale;
-                    }
-                } else {
-                    if dis > 5.0 {
-                        let scale = dis / 5.0;
-                        v1 += d.normalize() * -1.0 * step * scale;
-                        v2 += d.normalize() * 1.0 * step * scale;
-                        movement += step * scale;
-                    }
+                // if c12.is_some() {
+                //     if dis > 5.0 {
+                //         let scale = dis / 5.0;
+                //         v1 += d.normalize() * -1.0 * step * scale;
+                //         v2 += d.normalize() * 1.0 * step * scale;
+                //         movement += step * scale;
+                //     }
+                // }
+                // } else {
+                if dis < 20.0 {
+                    let scale = 80.0 / dis;
+                    v1 += d.normalize() * 1.0 * step * scale;
+                    v2 += d.normalize() * -1.0 * step * scale;
+                    movement += (step * scale).powf(2.0);
                 }
+                // }
             }
 
-            nodes[i1].x = v1.x;
-            nodes[i1].y = v1.y;
             nodes[i2].x = v2.x;
             nodes[i2].y = v2.y;
         }
+        nodes[i1].x = v1.x;
+        nodes[i1].y = v1.y;
     }
     if !nodes.is_empty() {
         nodes[0].x = 0.0;
@@ -444,8 +469,7 @@ fn simulate_physics(nodes: &mut Vec<Node>, connections: &Vec<Connection>) -> f32
 
 use std::io::Write;
 
-fn export_dot_file(state: &MutexGuard<'_,State>, filename: &str) {
-
+fn export_dot_file(state: &MutexGuard<'_, State>, filename: &str) {
     let mut writer = BufWriter::new(File::create(filename).expect("Could open file"));
 
     writeln!(&mut writer, "digraph G {{").unwrap();
